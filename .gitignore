@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+*.sqlite3
+
+# Excel
+Contacts.xlsx
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+
+# VSCode
+.vscode/
+.env
