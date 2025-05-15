@@ -1,38 +1,100 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from pydantic import BaseModel
 from pathlib import Path
-import pandas as pd
-import re
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from datetime import datetime, timedelta
 from fastapi.responses import StreamingResponse
 from io import StringIO
+import pandas as pd
+import re
 import csv
 
 app = FastAPI()
 
-# Enable CORS for frontend (React at localhost:3000)
+# CORS setup
 origins = ["http://localhost:3000"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or better: ["https://your-netlify-site.netlify.app"]
+    allow_origins=["*"],  # or ["https://your-netlify-site.netlify.app"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Constants
 EXCEL_PATH = Path("Contacts.xlsx")
+SECRET_KEY = "your_super_secret_key"  # Replace with a secure secret in production
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+users_db = {}  # In-memory user store: { email: { hashed_password: "..." } }
 
-# Create the Excel file if it doesn't exist
+# Create Excel file if not exists
 if not EXCEL_PATH.exists():
     pd.DataFrame(columns=["Email"]).to_excel(EXCEL_PATH, index=False)
 
-# Pydantic model for JSON body
+# Models
 class EmailInput(BaseModel):
     email: str
 
+class RegisterInput(BaseModel):
+    email: str
+    password: str
+
+# Auth helpers
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=30))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None or email not in users_db:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return email
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token expired or invalid")
+
+# Routes
 @app.get("/")
 def welcome():
     return {"message": "Welcome to the Email Group Viewer API!"}
+
+@app.post("/register")
+def register_user(user: RegisterInput):
+    if user.email in users_db:
+        raise HTTPException(status_code=400, detail="User already exists")
+    users_db[user.email] = {
+        "hashed_password": get_password_hash(user.password)
+    }
+    return {"message": "User registered successfully"}
+
+@app.post("/token")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = users_db.get(form_data.username)
+
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+
+    if not verify_password(form_data.password, user["hashed_password"]):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+
+    token = create_access_token(data={"sub": form_data.username})
+    return {"access_token": token, "token_type": "bearer"}
+
 
 @app.get("/domains")
 def get_domains():
@@ -88,7 +150,7 @@ def delete_email(domain: str, item: EmailInput):
     return {"message": "Email deleted successfully"}
 
 @app.get("/download_csv")
-def download_csv():
+def download_csv(current_user: str = Depends(get_current_user)):
     df = pd.read_excel(EXCEL_PATH)
     df[df.columns[0]] = df[df.columns[0]].astype(str).str.strip().str.lower()
 
