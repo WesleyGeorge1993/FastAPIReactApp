@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+const API_BASE_URL = process.env.REACT_APP_API_URL;
+
 const App = () => {
   const [domains, setDomains] = useState([]);
   const [search, setSearch] = useState("");
@@ -9,7 +11,7 @@ const App = () => {
   const [newEmail, setNewEmail] = useState("");
 
   useEffect(() => {
-    axios.get("http://localhost:8000/domains").then(res => {
+    axios.get(`${API_BASE_URL}/domains`).then(res => {
       setDomains(res.data);
       if (res.data.length > 0) setSelected(res.data[0]);
     });
@@ -17,7 +19,7 @@ const App = () => {
 
   useEffect(() => {
     if (selected)
-      axios.get(`http://localhost:8000/emails/${selected}`).then(res => {
+      axios.get(`${API_BASE_URL}/emails/${selected}`).then(res => {
         setEmails(res.data);
       });
   }, [selected]);
@@ -25,10 +27,10 @@ const App = () => {
   const addEmail = () => {
     if (!newEmail.trim()) return;
     axios
-      .post(`http://localhost:8000/emails/${selected}/add`, { email: newEmail })
+      .post(`${API_BASE_URL}/emails/${selected}/add`, { email: newEmail })
       .then(() => {
         setNewEmail("");
-        return axios.get(`http://localhost:8000/emails/${selected}`);
+        return axios.get(`${API_BASE_URL}/emails/${selected}`);
       })
       .then(res => setEmails(res.data))
       .catch(err => alert(err.response?.data?.detail || "Failed to add email"));
@@ -36,7 +38,7 @@ const App = () => {
 
   const handleDelete = email => {
     axios
-      .post(`http://localhost:8000/emails/${selected}/delete`, { email })
+      .post(`${API_BASE_URL}/emails/${selected}/delete`, { email })
       .then(() => {
         setEmails(emails.filter(e => e !== email));
       })
@@ -44,7 +46,7 @@ const App = () => {
   };
 
   const downloadCSV = () => {
-    window.open("http://localhost:8000/download_csv", "_blank");
+    window.open(`${API_BASE_URL}/download_csv`, "_blank");
   };
 
   const filteredDomains = domains.filter(d =>

@@ -5,7 +5,7 @@ venv/
 *.sqlite3
 
 # Excel
-Contacts.xlsx
+#Contacts.xlsx
 
 # Node
 node_modules/
