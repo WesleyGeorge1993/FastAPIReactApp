@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { FaTrashAlt } from "react-icons/fa"; // 🔥 Added icon import
 
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
@@ -63,6 +64,29 @@ const Dashboard = () => {
       .catch((err) => alert(err.response?.data?.detail || "Delete failed"));
   };
 
+  const handleDeleteDomain = (domainToDelete) => {
+    const confirmation = prompt(`Type "${domainToDelete}" to confirm deletion:`);
+
+    if (confirmation !== domainToDelete) {
+      alert("Confirmation does not match. Domain not deleted.");
+      return;
+    }
+
+    axios
+      .post(`${API_BASE_URL}/domains/delete`, {
+        domain: domainToDelete,
+        confirm: confirmation
+      })
+      .then(() => {
+        alert(`Domain "${domainToDelete}" deleted successfully.`);
+        setDomains(domains.filter((d) => d !== domainToDelete));
+        if (selected === domainToDelete) setSelected("");
+      })
+      .catch((err) => {
+        alert(err.response?.data?.detail || "Domain deletion failed.");
+      });
+  };
+
   const downloadCSV = () => {
     axios
       .get(`${API_BASE_URL}/download_csv`, {
@@ -85,11 +109,79 @@ const Dashboard = () => {
   );
 
   return (
-    <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "2rem" }}>
+    <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "2rem", display: "flex" }}>
+      
+      {/* Sidebar */}
       <div
         style={{
-          maxWidth: "800px",
-          margin: "0 auto",
+          width: "250px",
+          maxHeight: "600px",
+          overflowY: "auto",
+          border: "1px solid #ccc",
+          borderRadius: "10px",
+          padding: "1rem",
+          marginRight: "2rem",
+          backgroundColor: "#ffffff",
+        }}
+      >
+        <h3>📁 <strong>Domains</strong></h3>
+        <input
+          placeholder="Search domain..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "0.5rem",
+            marginBottom: "1rem",
+            borderRadius: "6px",
+            border: "1px solid #ccc"
+          }}
+        />
+        {filteredDomains.map((d) => (
+          <div
+            key={d}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "0.25rem 0",
+              backgroundColor: d === selected ? "#e6f0ff" : "transparent",
+              borderRadius: "4px"
+            }}
+          >
+            <span
+              onClick={() => setSelected(d)}
+              style={{
+                cursor: "pointer",
+                color: d === selected ? "#0d6efd" : "#333",
+                fontWeight: d === selected ? "bold" : "normal",
+                flex: 1,
+                paddingRight: "0.5rem"
+              }}
+            >
+              {d}
+            </span>
+            <button
+              style={{
+                backgroundColor: "#dc3545",
+                color: "white",
+                border: "none",
+                padding: "0.25rem",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+              onClick={() => handleDeleteDomain(d)}
+            >
+              <FaTrashAlt size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Main Panel */}
+      <div
+        style={{
+          flex: 1,
           background: "#ffffff",
           borderRadius: "12px",
           boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
@@ -136,40 +228,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <input
-          placeholder="Search domain..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.75rem",
-            fontSize: "1rem",
-            marginBottom: "1rem",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-          }}
-        />
-
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.75rem",
-            fontSize: "1rem",
-            marginBottom: "2rem",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-          }}
-        >
-          {filteredDomains.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-
         <h3>📧 Emails under <strong>{selected}</strong></h3>
+        
 
         <div
           style={{
@@ -208,7 +268,7 @@ const Dashboard = () => {
                     cursor: "pointer",
                   }}
                 >
-                  Delete
+                  <FaTrashAlt size={12} />
                 </button>
               </div>
             ))
