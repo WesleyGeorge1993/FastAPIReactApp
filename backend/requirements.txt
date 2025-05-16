@@ -4,3 +4,4 @@ pandas
 openpyxl
 python-jose
 passlib[bcrypt]
+python-multipart
